@@ -18,11 +18,11 @@ dtypes = {
 
 columns = ['ip', 'app', 'device', 'os', 'channel', 'click_time', 'is_attributed']
 
-chunkSize = 10 ** 3
+chunkSize = 10 ** 6
 
 initTime = datetime.datetime(2017, 10, 1)
 
-train = pd.read_csv("../train/train_sample.csv", 
+train = pd.read_csv("../train/train.csv", 
 	chunksize = chunkSize, 
 	dtype = dtypes, 
 	usecols = columns)
@@ -34,11 +34,15 @@ try:
 except OSError:
     pass
 
+chunkNumber = 0
 with open(cleanedFile, 'a+', newline = '') as cleanedCSV:
 	writer = csv.writer(cleanedCSV)
 	writer.writerow(columns)
 	for chunk in train:
+		chunkNumber += 1
 		chunk['click_time'] = pd.to_datetime(chunk['click_time']).dt.round('H')
 		chunk['click_time'] = (chunk['click_time'] -  initTime) / np.timedelta64(1, 'm')
 		chunk.to_csv(cleanedCSV, index = False, header = False)
+		print("Cleaned chunk ", chunkNumber)
+
 
