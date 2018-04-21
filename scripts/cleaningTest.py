@@ -26,3 +26,4 @@ with open(cleanedFile, 'a+', newline = '') as cleanTestCSV:
 		chunk['click_time'] = (chunk['click_time'] -  initTime) / np.timedelta64(1, 'm')
 		chunk.to_csv(cleanTestCSV, index = False, header = False)
 		print("Cleaned chunk", chunkNumber)
+		
