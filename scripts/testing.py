@@ -25,8 +25,8 @@ dtypesFull = {
 }
 
 dtypes = {
-	'ip' : 'uint32',
-	'click_time' : 'uint32',
+	'ip' 			: 'uint32',
+	'click_time' 	: 'uint32',
 	'is_attributed' : 'uint8'
 }
 
@@ -60,69 +60,51 @@ columns = ['ip', 'click_time', 'is_attributed']
 # ip_counts.sort_values('counts', ascending=False)[:20]
 
 
-chunkSize = 10 ** 6
+chunkSize = 10 ** 5
+chunkNumber = 0
+clf = []
+probs = []
 
-train = pd.read_csv("../train/train_sample.csv", dtype = dtypesFull, chunksize = chunkSize)
+train = pd.read_csv("../train/train_cleaned.csv", dtype = dtypesFull, chunksize = chunkSize)
 for chunk in train:
-results = train.pop('is_attributed')
-X = train.as_matrix()
-Y = np.array(results)
+	print("Training chunk", chunkNumber)
 
-print("Begun Training...")
-clf = RandomForestClassifier(n_estimators = 300)
-clf = clf.fit(X,Y)
-print("Done Training\n")
+	results = chunk.pop('is_attributed')
+	X = chunk.as_matrix()
+	Y = np.array(results)
 
+	clf.append(RandomForestClassifier(n_estimators = 100, n_jobs = 1))
+	clf[chunkNumber] = clf[chunkNumber].fit(X,Y)
 
-probs = clf.predict_proba(X)
-print(probs)
-print(Y)
-i = 0
-for entry in Y:
-	if (entry == 1):
-		print(probs[i])
-	i += 1
-print("Cross Validating...\n")
-scores = cross_val_score(clf, X, Y)
-print(scores.mean())
+	probs.append(clf[chunkNumber].predict_proba(X))
+	print(clf[chunkNumber].feature_importances_)
+	chunkNumber += 1
 
-
+sys.exit()
 
 
 chunkSize = 10 ** 6
-reader = pd.read_csv('../test.csv/test.csv', chunksize = chunkSize)
-print("Begin parsing test file...")
+reader = pd.read_csv('../test.csv/test_cleaned.csv', chunksize = chunkSize)
 status = 0
 chunkNumber = 0
 with open("../predictions/predictions.csv", "w", newline = '') as writeCSV:
 	writer = csv.writer(writeCSV)
 	writer.writerow(["click_id","is_attributed"])
+	for chunk in reader:
+		chunkNumber += 1
+		print(chunk.iloc[0].tolist())
 
-	# create initTime array
-	for i in range(0, chunkSize):
-		initTime.append(t)
-		for chunk in reader:
-			chunkNumber += 1
-			print(chunk.iloc[0].tolist())
+		dt = chunk.iloc[:,6].tolist()
+	probs = clf.predict_proba(X)
 
-			dt = chunk.iloc[:,6].tolist()
-			for i in range(0, len(dt)):
-				dt[i] = parser.parse(dt[i])
-				dt = list(map(operator.sub, dt, initTime))
-				dt = list(map(timedelta.total_seconds, dt))
-				chunk['click_time'] = dt
-				ids = chunk.pop('click_id').tolist()
-				X = chunk.as_matrix()
-				probs = clf.predict_proba(X)
+	# write to csv
+	output = []
+	for i in range(0, len(dt)):
+		line = [int(ids[i]), probs[i][1]]
+		if (line[1] > 0.5):
+			print(line)
+			output.append(line)
+			for row in output:
+				writer.writerow([row[0], row[1]])
 
-		# write to csv
-		output = []
-		for i in range(0, len(dt)):
-			line = [int(ids[i]), probs[i][1]]
-			if (line[1] > 0.5):
-				print(line)
-				output.append(line)
-				for row in output:
-					writer.writerow([row[0], row[1]])
-
-					print("Done with chunk", chunkNumber, "\n")
+				print("Done with chunk", chunkNumber, "\n")
