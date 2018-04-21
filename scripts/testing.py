@@ -32,41 +32,38 @@ dtypes = {
 
 columns = ['ip', 'click_time', 'is_attributed']
 
-ips_df = pd.read_csv("../train/train_cleaned.csv", usecols = columns, dtype = dtypes)
+# ips_df = pd.read_csv("../train/train_cleaned.csv", usecols = columns, dtype = dtypes)
 
-print(ips_df.info())
-ips_df.head()
+# print(ips_df.info())
+# ips_df.head()
 
-size=100000
-all_rows = len(ips_df)
-num_parts = all_rows//size
+# size=100000
+# all_rows = len(ips_df)
+# num_parts = all_rows//size
 
-#generate the first batch
-ip_counts = ips_df[0:size][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
+# #generate the first batch
+# ip_counts = ips_df[0:size][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
 
-#add remaining batches
-for p in range(1,num_parts):
-    start = p*size
-    end = p*size + size
-    if end < all_rows:
-        group = ips_df[start:end][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
-    else:
-        group = ips_df[start:][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
-    ip_counts = ip_counts.merge(group, on='ip', how='outer')
-    ip_counts.columns = ['ip', 'count1','count2']
-    ip_counts['counts'] = np.nansum((ip_counts['count1'], ip_counts['count2']), axis = 0)
-    ip_counts.drop(columns=['count1', 'count2'], axis = 0, inplace=True)
+# #add remaining batches
+# for p in range(1,num_parts):
+#     start = p*size
+#     end = p*size + size
+#     if end < all_rows:
+#         group = ips_df[start:end][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
+#     else:
+#         group = ips_df[start:][['ip', 'is_attributed']].groupby('ip', as_index=False).count()
+#     ip_counts = ip_counts.merge(group, on='ip', how='outer')
+#     ip_counts.columns = ['ip', 'count1','count2']
+#     ip_counts['counts'] = np.nansum((ip_counts['count1'], ip_counts['count2']), axis = 0)
+#     ip_counts.drop(columns=['count1', 'count2'], axis = 0, inplace=True)
 
-ip_counts.sort_values('counts', ascending=False)[:20]
+# ip_counts.sort_values('counts', ascending=False)[:20]
 
-sys.exit()
 
-# with more training data,
-# we will chunk the csv and do this section by section for memory
-train = pd.read_csv("../train/train_sample.csv", dtype = dtypesFull)
-train['click_time'] = pd.to_datetime(train['click_time']).dt.round('H')
-train['click_time'] = (train['click_time'] - train['click_time'].min()) / np.timedelta64(1, 'h')
-print("Done Parsing\n")
+chunkSize = 10 ** 6
+
+train = pd.read_csv("../train/train_sample.csv", dtype = dtypesFull, chunksize = chunkSize)
+for chunk in train:
 results = train.pop('is_attributed')
 X = train.as_matrix()
 Y = np.array(results)
@@ -76,24 +73,23 @@ clf = RandomForestClassifier(n_estimators = 300)
 clf = clf.fit(X,Y)
 print("Done Training\n")
 
-sys.exit()
 
-# probs = clf.predict_proba(X)
-# print(probs)
-# print(Y)
-# i = 0
-# for entry in Y:
-# 	if (entry == 1):
-# 		print(probs[i])
-# 	i += 1
-# print("Cross Validating...\n")
-# scores = cross_val_score(clf, X, Y)
-# print(scores.mean())
-
+probs = clf.predict_proba(X)
+print(probs)
+print(Y)
+i = 0
+for entry in Y:
+	if (entry == 1):
+		print(probs[i])
+	i += 1
+print("Cross Validating...\n")
+scores = cross_val_score(clf, X, Y)
+print(scores.mean())
 
 
 
-chunkSize = 500000
+
+chunkSize = 10 ** 6
 reader = pd.read_csv('../test.csv/test.csv', chunksize = chunkSize)
 print("Begin parsing test file...")
 status = 0
