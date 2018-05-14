@@ -67,44 +67,49 @@ probs = []
 
 train = pd.read_csv("../train/train_cleaned.csv", dtype = dtypesFull, chunksize = chunkSize)
 for chunk in train:
-	print("Training chunk", chunkNumber)
+	if chunkNumber < 2:
+		print("Training chunk", chunkNumber)
 
-	results = chunk.pop('is_attributed')
-	X = chunk.as_matrix()
-	Y = np.array(results)
+		results = chunk.pop('is_attributed')
+		X = chunk.as_matrix()
+		Y = np.array(results)
 
-	clf.append(RandomForestClassifier(n_estimators = 100, n_jobs = 1))
-	clf[chunkNumber] = clf[chunkNumber].fit(X,Y)
+		clf.append(RandomForestClassifier(n_estimators = 100, n_jobs = 1))
+		clf[chunkNumber] = clf[chunkNumber].fit(X,Y)
 
-	probs.append(clf[chunkNumber].predict_proba(X))
-	print(clf[chunkNumber].feature_importances_)
-	chunkNumber += 1
-
-sys.exit()
+		probs.append(clf[chunkNumber].predict_proba(X))
+		print(clf[chunkNumber].feature_importances_)
+		chunkNumber += 1
+	else:
+		break
 
 
 chunkSize = 10 ** 6
-reader = pd.read_csv('../test.csv/test_cleaned.csv', chunksize = chunkSize)
-status = 0
+reader = pd.read_csv('../test/test_cleaned.csv', chunksize = chunkSize)
 chunkNumber = 0
 with open("../predictions/predictions.csv", "w", newline = '') as writeCSV:
 	writer = csv.writer(writeCSV)
 	writer.writerow(["click_id","is_attributed"])
 	for chunk in reader:
-		chunkNumber += 1
-		print(chunk.iloc[0].tolist())
+		print("Predicting probabilities for chunk", chunkNumber)
+		
+		X = chunk.as_matrix()
+		aaaa = [[0 for x in range(len(clf))] for y in range(chunkSize)]
+		for i in range(len(clf)):
+			aaaa[:i] = clf[i].predict_proba(X)
+			print(aaaa[:i])
+		print(aaaa[0:100])
+		for observation in aaaa:
+			probs.append(np.mean(observation))
+		print(len(probs))
 
-		dt = chunk.iloc[:,6].tolist()
-	probs = clf.predict_proba(X)
+		chunkNumber += 1
+
 
 	# write to csv
 	output = []
-	for i in range(0, len(dt)):
-		line = [int(ids[i]), probs[i][1]]
-		if (line[1] > 0.5):
-			print(line)
-			output.append(line)
-			for row in output:
-				writer.writerow([row[0], row[1]])
+	
+	for row in output:
+		writer.writerow([row[0], row[1]])
 
-				print("Done with chunk", chunkNumber, "\n")
+	print("Done with chunk", chunkNumber, "\n")
